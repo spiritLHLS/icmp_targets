@@ -1,0 +1,52 @@
+name: 更新 ICMP Targets
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # 每天 UTC 时间 6:00 运行
+  workflow_dispatch:     # 允许手动触发
+
+jobs:
+  update-nodes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出当前公共仓库
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: 检出私有仓库获取数据
+        uses: actions/checkout@v4
+        with:
+          repository: oneclickvirt/ICMPTargetSpiders
+          path: spider-repo
+          token: ${{ secrets.PAT_TOKEN }}  # 需要访问私有仓库的 PAT
+      
+      - name: 处理 CSV 并生成 nodes.json
+        run: |
+          python3 - << 'EOF'
+          import pandas as pd
+          import json
+      
+          # 读取私有仓库中的 CSV 文件
+          csv_path = 'spider-repo/cdn_domain_analysis.csv'
+          df = pd.read_csv(csv_path)
+          # 替换所有 NaN 为 ''
+          df.fillna('', inplace=True)
+          # 只选择需要的列
+          df = df[['province', 'isp_code', 'isp', 'ip_version', 'ips']]
+          # 转换为字典列表
+          nodes = df.to_dict(orient='records')
+          # 将结果保存到当前仓库的 JSON 文件
+          output_path = 'nodes.json'
+          with open(output_path, 'w', encoding='utf-8') as f:
+              json.dump(nodes, f, ensure_ascii=False, indent=2)
+          print(f"成功处理 {len(nodes)} 个节点并保存到 {output_path}")
+          EOF
+
+      - name: 提交更改到当前公共仓库
+        run: |
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
+          git add nodes.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "update: 更新 nodes.json $(date +'%Y-%m-%d')"
+          git push

@@ -1,0 +1,41 @@
+name: VPC终端节点分析
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 每天UTC时间0点运行
+  workflow_dispatch:      # 允许手动触发
+
+jobs:
+  analyze-vpc-endpoints:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 检出私有仓库
+        uses: actions/checkout@v4
+        with:
+          repository: oneclickvirt/ICMPTargetSpiders
+          token: ${{ secrets.PAT_TOKEN }}  # 需要访问私有仓库的 PAT
+          path: spider-repo
+          
+      - name: 安装依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dnsutils traceroute whois python3-pip
+          pip install requests pandas || sudo apt install -y python3-requests python3-pandas
+          
+      - name: 处理终端节点
+        run: |
+          cd spider-repo
+          chmod +x build.py domain_resolver.py ip_finder.py
+          python3 build.py
+          python3 domain_resolver.py
+          python3 ip_finder.py
+          
+      - name: 提交并推送更改到私有仓库
+        run: |
+          cd spider-repo
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add cloud_vpc_analysis.csv cdn_domain_analysis.csv
+          git commit -m "更新VPC分析结果 $(date +'%Y-%m-%d')" || echo "没有变更需要提交"
+          git push
