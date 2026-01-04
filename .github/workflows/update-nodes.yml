@@ -5,6 +5,9 @@ on:
     - cron: '0 6 * * *'  # 每天 UTC 时间 6:00 运行
   workflow_dispatch:     # 允许手动触发
 
+permissions:
+  contents: write
+
 jobs:
   update-nodes:
     runs-on: ubuntu-latest
@@ -13,6 +16,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 安装依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dnsutils traceroute whois python3-pip
+          pip install requests pandas || apt install -y python3-requests python3-pandas
       
       - name: 检出私有仓库获取数据
         uses: actions/checkout@v4
