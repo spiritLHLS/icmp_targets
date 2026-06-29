@@ -22,27 +22,30 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y dnsutils traceroute whois python3-pip
           pip install requests pandas || apt install -y python3-requests python3-pandas
-      
+
       - name: 检出私有仓库获取数据
         uses: actions/checkout@v4
         with:
           repository: oneclickvirt/ICMPTargetSpiders
           path: spider-repo
           token: ${{ secrets.PAT_TOKEN }}  # 需要访问私有仓库的 PAT
-      
+
       - name: 处理 CSV 并生成 nodes.json
         run: |
           python3 - << 'EOF'
           import pandas as pd
           import json
-      
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, str(Path('spider-repo').resolve()))
+          from csv_schema import dataframe_for_nodes_json
+
           # 读取私有仓库中的 CSV 文件
           csv_path = 'spider-repo/cdn_domain_analysis.csv'
           df = pd.read_csv(csv_path)
-          # 替换所有 NaN 为 ''
-          df.fillna('', inplace=True)
-          # 只选择需要的列
-          df = df[['province', 'isp_code', 'isp', 'ip_version', 'ips']]
+          # 只选择需要的列，按列类型处理缺失值，避免向数值列填入字符串。
+          df = dataframe_for_nodes_json(df)
           # 转换为字典列表
           nodes = df.to_dict(orient='records')
           # 将结果保存到当前仓库的 JSON 文件
