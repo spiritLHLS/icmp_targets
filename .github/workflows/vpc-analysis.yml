@@ -11,7 +11,7 @@ jobs:
     
     steps:
       - name: 检出私有仓库
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: oneclickvirt/ICMPTargetSpiders
           token: ${{ secrets.PAT_TOKEN }}  # 需要访问私有仓库的 PAT
